@@ -21,16 +21,11 @@ if __name__ == "__main__":
     device = torch.device('cuda:{}'.format(gpu_id))
     fixed = False
 
-    spynet = SpyNet().to(device)
-    pre_trained = f'./checkpoints/finetuning.pth'
-    pretrain_encoder = torch.load(pre_trained, map_location=device)
-    spynet.load_state_dict(pretrain_encoder)
-    spynet.requires_grad = False
+    spynet_pretrain = f'./checkpoints/stage4.pth'
+    unet_pretrain = f'./checkpoints/unet.pth'
 
-    unet = UNet(8, 3).to(device)
-    pre_trained = f'./checkpoints/unet.pth'
-    pretrain_encoder = torch.load(pre_trained, map_location=device)
-    unet.load_state_dict(pretrain_encoder)
+    spynet = get_model(SpyNet(), device, spynet_pretrain)
+    unet = get_model(UNet(8, 3), device, unet_pretrain)
 
     optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, unet.parameters()), lr=lr, weight_decay=1e-4)
     # scheduler = torch.optim.lr_scheduler.LinearLR(optimizer, start_factor=0.5, total_iters=4)

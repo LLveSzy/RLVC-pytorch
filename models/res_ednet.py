@@ -16,16 +16,12 @@ class ReanalysisNet(nn.Module):
 
     def forward(self, input, h_state=None):
         batch = input.shape[0]
-        input = input.reshape(-1, *input.shape[2:])
         x = self.conv1(input)
         x = self.conv2(x)
-        x = x.reshape(batch, -1, *x.shape[1:])
-        x, h = self.rnn(x)
-        x = x[0].reshape(-1, *x[0].shape[2:])
+        x, h = self.rnn(x, h_state)
         x = self.conv3(x)
         x = self.conv4(x)
-        x = x.reshape(batch, -1, *x.shape[1:])
-        return x
+        return x, h
 
     def conv_gdn(self, feat_in, feat_out):
         return nn.Sequential(
@@ -45,17 +41,12 @@ class ResynthesisNet(nn.Module):
         self.conv4 = nn.ConvTranspose2d(128, 3, kernel_size=5, stride=2, padding=2, output_padding=1, bias=True)
 
     def forward(self, input, h_state=None):
-        batch = input.shape[0]
-        input = input.reshape(-1, *input.shape[2:])
         x = self.conv1(input)
         x = self.conv2(x)
-        x = x.reshape(batch, -1, *x.shape[1:])
-        x, h = self.rnn(x)
-        x = x[0].reshape(-1, *x[0].shape[2:])
+        x, h = self.rnn(x, h_state)
         x = self.conv3(x)
         x = self.conv4(x)
-        x = x.reshape(batch, -1, *x.shape[1:])
-        return x
+        return x, h
 
     def conv_gdn(self, feat_in, feat_out):
         return nn.Sequential(

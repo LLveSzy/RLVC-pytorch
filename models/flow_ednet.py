@@ -15,17 +15,12 @@ class MvanalysisNet(nn.Module):
         self.conv4 = nn.Conv2d(128, 128, kernel_size=3, stride=2, padding=1, bias=True)
 
     def forward(self, input, h_state=None):
-        batch = input.shape[0]
-        input = input.reshape(-1, *input.shape[2:])
         x = self.conv1(input)
         x = self.conv2(x)
-        x = x.reshape(batch, -1, *x.shape[1:])
-        x, h = self.rnn(x)
-        x = x[0].reshape(-1, *x[0].shape[2:])
+        x, h = self.rnn(x, h_state)
         x = self.conv3(x)
         x = self.conv4(x)
-        x = x.reshape(batch, -1, *x.shape[1:])
-        return x
+        return x, h
 
     def conv_gdn(self, feat_in, feat_out):
         return nn.Sequential(
@@ -45,17 +40,12 @@ class MvsynthesisNet(nn.Module):
         self.conv4 = nn.ConvTranspose2d(128, 2, kernel_size=3, stride=2, padding=1, output_padding=1, bias=True)
 
     def forward(self, input, h_state=None):
-        batch = input.shape[0]
-        input = input.reshape(-1, *input.shape[2:])
         x = self.conv1(input)
         x = self.conv2(x)
-        x = x.reshape(batch, -1, *x.shape[1:])
-        x, h = self.rnn(x)
-        x = x[0].reshape(-1, *x[0].shape[2:])
+        x, h = self.rnn(x, h_state)
         x = self.conv3(x)
         x = self.conv4(x)
-        x = x.reshape(batch, -1, *x.shape[1:])
-        return x
+        return x, h
 
     def conv_gdn(self, feat_in, feat_out):
         return nn.Sequential(

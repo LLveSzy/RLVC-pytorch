@@ -12,14 +12,14 @@ from dataset.vimeo_dataset import VimeoDataset
 
 if __name__ == "__main__":
     torch.backends.cudnn.enabled = True
-    gpu_id = 5
-    batch_size = 40
+    gpu_id = 1
+    batch_size = 30
     lr = 5e-4
     epochs = 15
     device = torch.device('cuda:{}'.format(gpu_id))
-    source = 4
+    source = 3
     stage = 4
-    fixed = False
+    fixed = True
 
     net = SpyNet(stage).to(device)
 

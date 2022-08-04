@@ -25,11 +25,11 @@ class VimeoDataset(data.Dataset):
 
     def __getitem__(self, idx):
         pic_pth = self.pth[idx]
-        lst = [i for i in range(1, 5)]
+        lst = [i for i in range(1, 6)]
         random.shuffle(lst)
         num1, num2 = lst[:2]
         ref = cv2.imread(join(pic_pth, 'im'+ str(num1) + '.png'))
-        cur = cv2.imread(join(pic_pth, 'im'+ str(num1+random.randint(1, 3)) + '.png'))
+        cur = cv2.imread(join(pic_pth, 'im'+ str(num1+1) + '.png'))
         ref, cur = torch.Tensor(cur).permute(2, 0, 1).unsqueeze(0), torch.Tensor(ref).permute(2, 0, 1).unsqueeze(0)
         ref, cur = self._transform(torch.cat([ref, cur], dim=0))
         return ref, cur
@@ -52,7 +52,7 @@ class VimeoGroupDataset(data.Dataset):
 
     def __getitem__(self, idx):
         pic_pth = self.pth[idx]
-        for i in range(1, 8):
+        for i in range(1, 4):
             f = cv2.imread(join(pic_pth, 'im'+ str(i) + '.png'))
             f = torch.Tensor(f).permute(2, 0, 1).unsqueeze(0)
             if i == 1:

@@ -69,3 +69,16 @@ def load_statedict(model, checkpoint, device):
     else:
         logger.info('ALL MATCHED.')
     return own_state
+
+
+def optimizer_factory(lr, *args):
+    optmizer_list = []
+    for o in args:
+        optmizer_list.append(torch.optim.Adam(o.parameters(), lr=lr, weight_decay=1e-4))
+    return optmizer_list
+
+
+def optimizer_step(optmizer_list):
+    for optim in optmizer_list:
+        optim.zero_grad()
+        optim.step()

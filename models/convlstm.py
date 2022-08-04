@@ -113,7 +113,29 @@ class ConvLSTM(nn.Module):
 
         self.cell_list = nn.ModuleList(cell_list)
 
+
     def forward(self, input_tensor, hidden_state=None):
+        """
+        :param input_tensor:
+        :param hidden_state:
+        :return:
+        """
+        b, _, h, w = input_tensor.size()
+        if hidden_state == None:
+            hidden_state = self._init_hidden(batch_size=b,
+                                             image_size=(h, w))
+        cur_layer_input = input_tensor
+        state_list = []
+        for layer_idx in range(self.num_layers):
+            h, c = hidden_state[layer_idx]
+            h, c = self.cell_list[layer_idx](input_tensor=cur_layer_input,
+                                             cur_state=[h, c])
+            cur_layer_input = h
+            state_list.append([h, c])
+        return h, state_list
+
+
+    def forward_t(self, input_tensor, hidden_state=None):
         """
         Parameters
         ----------
