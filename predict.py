@@ -79,7 +79,7 @@ if __name__ == "__main__":
     refined_frames_q = (re_res_q + compens_result).view(1, -1, *l3_shapes)
     save1 = frames[0][5].permute(1, 2, 0).cpu().detach().numpy()
     save2 = refined_frames[0][4].permute(1, 2, 0).cpu().detach().numpy()
-    save3 = re_res[0][4].permute(1, 2, 0).cpu().detach().numpy()
+    save3 = compens_result[4].permute(1, 2, 0).cpu().detach().numpy()
     cv2.imwrite('./outs/res' + str(random.randint(10, 20)) + '.png',
                 np.concatenate((save1, save2, save3), axis=1))
 

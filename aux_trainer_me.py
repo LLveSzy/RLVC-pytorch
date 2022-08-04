@@ -26,27 +26,13 @@ if __name__ == "__main__":
     device = torch.device('cuda:{}'.format(gpu_id))
     fixed = False
 
-    spynet = SpyNet().to(device)
-    pre_trained = f'./checkpoints/finetuning1.pth'
-    pretrain_encoder = torch.load(pre_trained, map_location=device)
-    spynet.load_state_dict(pretrain_encoder)
-    spynet.requires_grad = False
+    spynet_pretrain = f'./checkpoints/finetuning1.pth'
+    mv_encoder_pretrain = f'./checkpoints/motion_encoder_e.pth'
+    mv_decoder_pretrain = f'./checkpoints/motion_decoder_e.pth'
 
-    # unet = UNet(8, 3).to(device)
-    # pre_trained = f'./checkpoints/unet.pth'
-    # pretrain_encoder = torch.load(pre_trained, map_location=device)
-    # unet.load_state_dict(pretrain_encoder)
-    mv_encoder = MvanalysisNet(device).to(device)
-    mv_decoder = MvsynthesisNet(device).to(device)
-    # mv_encoder.requires_grad = False
-
-    pre_trained = f'./checkpoints/motion_encoder_e.pth'
-    pretrain_encoder = torch.load(pre_trained, map_location=device)
-    mv_encoder.load_state_dict(pretrain_encoder)
-
-    pre_trained = f'./checkpoints/motion_decoder_e.pth'
-    pretrain_decoder = torch.load(pre_trained, map_location=device)
-    mv_decoder.load_state_dict(pretrain_decoder)
+    spynet = get_model(SpyNet(), device, spynet_pretrain)
+    mv_encoder = get_model(MvanalysisNet(device), device, mv_encoder_pretrain)
+    mv_decoder = get_model(MvsynthesisNet(device), device, mv_decoder_pretrain)
 
     optimizer_encoder = torch.optim.Adam(mv_encoder.parameters(), lr=lr, weight_decay=1e-4)
     optimizer_decoder = torch.optim.Adam(mv_decoder.parameters(), lr=lr, weight_decay=1e-4)

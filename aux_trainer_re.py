@@ -64,7 +64,9 @@ if __name__ == "__main__":
                 for frames in train_dataloader:
                     batch = frames.shape[0]
                     # get optical-flow and encode & decode
+                    frames = frames.to(device)
                     flows = spynet.predict_recurrent(frames.to(device))
+                    flows = spynet()
                     # mark last three sizes
                     l3_shapes = frames.shape[2:]
                     l2_shapes = flows.shape[2:]
