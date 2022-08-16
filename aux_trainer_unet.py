@@ -14,7 +14,7 @@ from dataset.vimeo_dataset import VimeoDataset
 
 if __name__ == "__main__":
     torch.backends.cudnn.enabled = True
-    gpu_id = 5
+    gpu_id = 3
     batch_size = 24
     lr = 1e-3
     epochs = 100
@@ -22,10 +22,10 @@ if __name__ == "__main__":
     fixed = False
 
     spynet_pretrain = f'./checkpoints/stage4.pth'
-    unet_pretrain = f'./checkpoints/unet.pth'
+    unet_pretrain = f'./checkpoints/unet_d255.pth'
 
     spynet = get_model(SpyNet(), device, spynet_pretrain)
-    unet = get_model(UNet(8, 3), device, unet_pretrain)
+    unet = get_model(UNet(8, 3), device)
 
     optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, unet.parameters()), lr=lr, weight_decay=1e-4)
     # scheduler = torch.optim.lr_scheduler.LinearLR(optimizer, start_factor=0.5, total_iters=4)
@@ -61,8 +61,8 @@ if __name__ == "__main__":
                     cv2.imwrite('./outs/res' + str(random.randint(1, 10)) + '.png',
                                 np.concatenate((save1, save2, save3), axis=1))
 
-        save_checkpoint(unet, 'unet')
+        save_checkpoint(unet, 'unet_light1')
     except KeyboardInterrupt:
-        save_checkpoint(unet, 'unet')
+        save_checkpoint(unet, 'unet_light1')
 
 

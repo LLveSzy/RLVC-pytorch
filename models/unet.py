@@ -11,11 +11,10 @@ class DoubleConv(nn.Module):
         super(DoubleConv, self).__init__()
         self.conv = nn.Sequential(
             nn.Conv2d(in_ch, out_ch, 3, padding=1),
-            nn.BatchNorm2d(out_ch),
             nn.ReLU(inplace=True),
             nn.Conv2d(out_ch, out_ch, 3, padding=1),
-            nn.BatchNorm2d(out_ch),
-            nn.ReLU(inplace=True))
+            nn.ReLU(inplace=True)
+        )
 
     def forward(self, x):
         x = self.conv(x)
@@ -36,10 +35,10 @@ class Down(nn.Module):
     def __init__(self, in_ch, out_ch):
         super(Down, self).__init__()
         self.mpconv = nn.Sequential(
-            nn.MaxPool2d(2),
+            nn.AvgPool2d(2),
             DoubleConv(in_ch, out_ch)
         )
-        self.downscale = nn.MaxPool2d(2)
+        self.downscale = nn.AvgPool2d(2)
     def forward(self, x):
         x_down = self.downscale(x)
         x = self.mpconv(x)
@@ -67,18 +66,22 @@ class Up(nn.Module):
 
         x1 = F.pad(x1, (diffX // 2, diffX - diffX // 2,
                         diffY // 2, diffY - diffY // 2))
-        x = torch.cat([x2, x1], dim=1)
-        x = self.conv(x)
-        return x + x_up
+        # x = torch.cat([x2, x1], dim=1)
+        x = self.conv(x1)
+        return x + x_up + x2
 
 
 class OutConv(nn.Module):
     def __init__(self, in_ch, out_ch):
         super(OutConv, self).__init__()
-        self.conv = nn.Conv2d(in_ch, out_ch, 1)
+        self.conv1 = nn.Conv2d(in_ch, in_ch, 3, padding=1)
+        self.relu = nn.ReLU(inplace=True)
+        self.conv2 = nn.Conv2d(in_ch, out_ch, 1)
 
     def forward(self, x):
-        x = self.conv(x)
+        x = self.conv1(x)
+        x = self.relu(x)
+        x = self.conv2(x)
         return x
 
 
@@ -92,11 +95,9 @@ class UNet(nn.Module):
         self.down1 = Down(64, 64)
         self.down2 = Down(64, 64)
         self.down3 = Down(64, 64)
-        self.down4 = Down(64, 64)
-        self.up1 = Up(128, 64)
-        self.up2 = Up(128, 64)
-        self.up3 = Up(128, 64)
-        self.up4 = Up(128, 64)
+        self.up1 = Up(64, 64)
+        self.up2 = Up(64, 64)
+        self.up3 = Up(64, 64)
         self.outc = OutConv(64, classes)
 
     def forward(self, x):
@@ -104,13 +105,11 @@ class UNet(nn.Module):
         x2 = self.down1(x1)
         x3 = self.down2(x2)
         x4 = self.down3(x3)
-        x5 = self.down4(x4)
-        x = self.up1(x5, x4)
-        x = self.up2(x, x3)
-        x = self.up3(x, x2)
-        x = self.up4(x, x1)
+        x = self.up1(x4, x3)
+        x = self.up2(x, x2)
+        x = self.up3(x, x1)
         x = self.outc(x)
-        return torch.sigmoid(x) * 255
+        return x
 
     def predict_recurrent(self, frames):
         '''

@@ -24,14 +24,14 @@ if __name__ == "__main__":
     gpu_id = 0
     batch_size = 4
     lr = 1e-4
-    epochs = 20
+    epochs = 50
     device = torch.device('cuda:{}'.format(gpu_id))
     # spynet_pretrain = f'./checkpoints/finetuning1.pth'
     # mv_encoder_pretrain = f'./checkpoints/motion_encoder_e.pth'
     # mv_decoder_pretrain = f'./checkpoints/motion_decoder_e.pth'
     # unet_pretrain = f'./checkpoints/unet.pth'
-    # re_encoder_pretrain = f'./checkpoints/residual_encoder_e.pth'
-    # re_decoder_pretrain = f'./checkpoints/residual_decoder_e.pth'
+    re_encoder_pretrain = f'./checkpoints/residual_encoder_e.pth'
+    re_decoder_pretrain = f'./checkpoints/residual_decoder_e.pth'
     #
     # spynet = get_model(SpyNet(), device, spynet_pretrain)
     # mv_encoder = get_model(MvanalysisNet(device), device, mv_encoder_pretrain)
@@ -43,10 +43,10 @@ if __name__ == "__main__":
     # mv_encoder.requires_grad = False
     # mv_decoder.requires_grad = False
 ####################################################################################################################
-    # re_encoder = get_model(ReanalysisNet(device), device, re_encoder_pretrain)
-    # re_decoder = get_model(ResynthesisNet(device), device, re_decoder_pretrain)
-    re_encoder = get_model(ReanalysisNet(device), device)
-    re_decoder = get_model(ResynthesisNet(device), device)
+    re_encoder = get_model(ReanalysisNet(device), device, re_encoder_pretrain)
+    re_decoder = get_model(ResynthesisNet(device), device, re_decoder_pretrain)
+    # re_encoder = get_model(ReanalysisNet(device), device)
+    # re_decoder = get_model(ResynthesisNet(device), device)
 
     optimizer_encoder = torch.optim.Adam(re_encoder.parameters(), lr=lr, weight_decay=1e-4)
     optimizer_decoder = torch.optim.Adam(re_decoder.parameters(), lr=lr, weight_decay=1e-4)
@@ -63,15 +63,14 @@ if __name__ == "__main__":
         for epoch in range(1, epochs):
             with tqdm(total=n_train, desc=f'Epoch {epoch}/{epochs}') as pbar:
                 for ref, cur in train_dataloader:
-                    ref =  ref.to(device)
+                    ref = ref.to(device)
                     cur = cur.to(device)
                     residual = ref - cur
                     re_code, _ = re_encoder(residual)
-                    re_res, _ = re_decoder(re_code)
-                    # count loss
                     output, likelihood = entropy_loss(re_code)
-                    mse = mse_Loss(re_res, residual)
-                    loss = mse - 0.1 * torch.log(likelihood).mean()
+                    re_res, _ = re_decoder(output)
+                    # count loss
+                    loss = mse_Loss(re_res, residual) #- torch.log(likelihood).mean()
 
                     optimizer_encoder.zero_grad()
                     optimizer_decoder.zero_grad()
@@ -81,14 +80,17 @@ if __name__ == "__main__":
                     pbar.set_postfix(**{'loss (batch)': format(loss.item(), '.5f')})
                     pbar.update(ref.shape[0])
 
-                    # save1 = cur[0].permute(1, 2, 0).cpu().detach().numpy()
-                    # save2 = pre[0].permute(1, 2, 0).cpu().detach().numpy()
-                    # save3 = ref[0].permute(1, 2, 0).cpu().detach().numpy()
-                    # cv2.imwrite('./outs/res' + str(random.randint(1, 10)) + '.png',
-                    #             np.concatenate((save1, save2, save3), axis=1))
+                    save1 = cur[0].permute(1, 2, 0).cpu().detach().numpy()
+                    save2 = re_res[0].permute(1, 2, 0).cpu().detach().numpy()
+                    save3 = residual[0].permute(1, 2, 0).cpu().detach().numpy()
+                    cv2.imwrite('./outs/res' + str(random.randint(1, 10)) + '.png',
+                                np.concatenate((save1, save2, save3), axis=1))
 
-        save_checkpoint(re_encoder, 'residual_encoder_e')
-        save_checkpoint(re_decoder, 'residual_decoder_e')
+        save_checkpoint(re_encoder, 'residual_encoder_e1')
+        save_checkpoint(re_decoder, 'residual_decoder_e1')
     except KeyboardInterrupt:
-        save_checkpoint(re_encoder, 'residual_encoder_e')
-        save_checkpoint(re_decoder, 'residual_decoder_e')
+        save_checkpoint(re_encoder, 'residual_encoder_e1')
+        save_checkpoint(re_decoder, 'residual_decoder_e1')
+
+
+

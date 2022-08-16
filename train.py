@@ -21,32 +21,32 @@ from dataset.vimeo_dataset import VimeoDataset, VimeoGroupDataset
 
 if __name__ == "__main__":
     torch.backends.cudnn.enabled = True
-    gpu_id = 0
-    batch_size = 6
-    lr = 1e-5
+    gpu_id = 3
+    batch_size = 4
+    lr = 5e-6
     epochs = 20
     device = torch.device('cuda:{}'.format(gpu_id))
     spynet_pretrain = f'./checkpoints/stage4.pth'
     mv_encoder_pretrain = f'./checkpoints/motion_encoder_e.pth'
     mv_decoder_pretrain = f'./checkpoints/motion_decoder_e.pth'
-    unet_pretrain = f'./checkpoints/unet.pth'
+    unet_pretrain = f'./checkpoints/unet_light.pth'
     re_encoder_pretrain = f'./checkpoints/residual_encoder_e.pth'
     re_decoder_pretrain = f'./checkpoints/residual_decoder_e.pth'
 
     spynet = get_model(SpyNet(), device, spynet_pretrain)
     mv_encoder = get_model(MvanalysisNet(device), device, mv_encoder_pretrain)
     mv_decoder = get_model(MvsynthesisNet(device), device, mv_decoder_pretrain)
-    unet = get_model(UNet(8, 3), device, unet_pretrain)
+    unet = get_model(UNet(8, 3), device)
     #
     # spynet.requires_grad = False
     # unet.requires_grad = False
     # mv_encoder.requires_grad = False
     # mv_decoder.requires_grad = False
 ####################################################################################################################
-    # re_encoder = get_model(ReanalysisNet(device), device, re_encoder_pretrain)
-    # re_decoder = get_model(ResynthesisNet(device), device, re_decoder_pretrain)
-    re_encoder = get_model(ReanalysisNet(device), device)
-    re_decoder = get_model(ResynthesisNet(device), device)
+    re_encoder = get_model(ReanalysisNet(device), device, re_encoder_pretrain)
+    re_decoder = get_model(ResynthesisNet(device), device, re_decoder_pretrain)
+    # re_encoder = get_model(ReanalysisNet(device), device)
+    # re_decoder = get_model(ResynthesisNet(device), device)
 
     # optim_list = optimizer_factory(lr, *[re_encoder, re_decoder, unet, mv_encoder, mv_decoder, spynet])
     optim_list = optimizer_factory(lr, *[spynet, unet, mv_encoder, mv_decoder])
@@ -61,7 +61,7 @@ if __name__ == "__main__":
     entropy_loss = compressai.entropy_models.entropy_models.EntropyBottleneck(128).to(device)
     try:
         for epoch in range(1, epochs):
-            with tqdm(total=n_train, desc=f'Epoch {epoch}/{epochs}') as pbar:
+            with tqdm(total=n_train, desc=f'Epoch {epoch}/{epochs}', ncols=110) as pbar:
                 for frames in train_dataloader:
                     loss = 0
                     frames = frames.to(device)
@@ -73,31 +73,45 @@ if __name__ == "__main__":
                         optical_loss = optical_loss[-1]
 
                         code, h1_state = mv_encoder(flows, h1_state)
-                        res, h2_state = mv_decoder(code, h2_state)
-                        mv_ae_loss = mse_Loss(flows, res) - 0.1 * entropy_loss(code)[1].mean()
+                        output_mv, mv_likelihoods = entropy_loss(code)
+                        res, h2_state = mv_decoder(output_mv, h2_state)
+                        mv_ae_loss = -torch.log(mv_likelihoods).mean() #+ mse_Loss(flows, res)
                         # warp from last frame
                         warped = optical_flow_warping(last, res)
                         # motion compensation net forward & get residual
                         compens_input = torch.cat([last, warped, res], dim=1)
                         compens_result = unet(compens_input)
                         mc_loss = mse_Loss(current, compens_result)
-                        # encoding & decoding residuals
-                        residual = (current - compens_result)
-                        re_code, h3_state = re_encoder(residual, h3_state)
-                        re_res, h4_state = re_decoder(re_code, h4_state)
-                        res_ae_loss = mse_Loss(residual, re_res) - 0.1 * entropy_loss(re_code)[1].mean()
-                        retrieval_frames = compens_result + re_res
-                        retrieval_loss = mse_Loss(retrieval_frames, current)
+                        # # encoding & decoding residuals
+                        # residual = (current - compens_result)
+                        # re_code, h3_state = re_encoder(residual, h3_state)
+                        # output_res, res_likelihoods = entropy_loss(re_code)
+                        # re_res, h4_state = re_decoder(output_res, h4_state)
+                        # res_ae_loss = -torch.log(res_likelihoods).mean() # + mse_Loss(residual, re_res)
+                        # # retrieve frame
+                        # retrieval_frames = compens_result + re_res
+                        # retrieval_loss = mse_Loss(retrieval_frames, current)
 
-                        last = retrieval_frames
+                        last = current
+                        # if i == 1:
+                        #     loss += mv_ae_loss + res_ae_loss# optical_loss + mc_loss + res_ae_loss +  res_ae_loss
+                        loss += (optical_loss + mc_loss) / (frames.shape[1] - 1)
 
-                        loss += optical_loss + mc_loss + mv_ae_loss # + res_ae_loss + 10 * retrieval_loss
-                    loss /= frames.shape[1]
+                    # loss /= (frames.shape[1] - 1)
 
                     loss.backward()
                     optimizer_step(optim_list)
-                    pbar.set_postfix(**{'loss (batch)': format(loss.item(), '.5f')})
+                    pbar.set_postfix(**{'loss (batch)': format(loss.item(), '.5f'),
+                                        'max res': format(res.max(), '.1f'),
+                                        'max flow': format(flows.max(), '.1f')})
                     pbar.update(frames.shape[0])
+
+                    save1 = frames[:, -2, ...][0].permute(1, 2, 0).cpu().detach().numpy()
+                    save2 = compens_result[0].permute(1, 2, 0).cpu().detach().numpy()
+                    save3 = warped[0].permute(1, 2, 0).cpu().detach().numpy()
+                    save4 = current[0].permute(1, 2, 0).cpu().detach().numpy()
+                    cv2.imwrite('./outs/res' + str(random.randint(1, 10)) + '.png',
+                                np.concatenate((save1, save2, save3, save4), axis=1))
 
                 # save1 = cur[0].permute(1, 2, 0).cpu().detach().numpy()
                     # save2 = pre[0].permute(1, 2, 0).cpu().detach().numpy()
@@ -116,5 +130,5 @@ if __name__ == "__main__":
         save_checkpoint(re_decoder, 'residual_decoder_union')
         save_checkpoint(spynet, 'spynet_union')
         save_checkpoint(unet, 'unet_union')
-        save_checkpoint(mv_encoder, 'mv_encoder_union')
-        save_checkpoint(mv_decoder, 'mv_decoder_union')
+        save_checkpoint(mv_encoder, 'motion_encoder_union')
+        save_checkpoint(mv_decoder, 'motion_decoder_union')

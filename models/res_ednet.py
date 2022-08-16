@@ -15,7 +15,6 @@ class ReanalysisNet(nn.Module):
         self.conv4 = nn.Conv2d(128, 128, kernel_size=5, stride=2, padding=2, bias=True)
 
     def forward(self, input, h_state=None):
-        batch = input.shape[0]
         x = self.conv1(input)
         x = self.conv2(x)
         x, h = self.rnn(x, h_state)

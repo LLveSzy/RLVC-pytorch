@@ -1,4 +1,5 @@
 import cv2
+import math
 import torch
 import random
 import numpy as np
@@ -26,7 +27,7 @@ if __name__ == "__main__":
     device = torch.device('cuda:{}'.format(gpu_id))
     fixed = False
 
-    spynet_pretrain = f'./checkpoints/finetuning1.pth'
+    spynet_pretrain = f'./checkpoints/stage4.pth'
     mv_encoder_pretrain = f'./checkpoints/motion_encoder_e.pth'
     mv_decoder_pretrain = f'./checkpoints/motion_decoder_e.pth'
 
@@ -37,7 +38,7 @@ if __name__ == "__main__":
     optimizer_encoder = torch.optim.Adam(mv_encoder.parameters(), lr=lr, weight_decay=1e-4)
     optimizer_decoder = torch.optim.Adam(mv_decoder.parameters(), lr=lr, weight_decay=1e-4)
 
-    dataset = VimeoGroupDataset('/data/szy/datasets/vimeo_septuplet/sequences/')
+    dataset = VimeoDataset('/data/szy/datasets/vimeo_septuplet/sequences/')
     indices = list(range(len(dataset)))
     random.shuffle(indices)
     n_train = len(dataset)//20
@@ -48,27 +49,30 @@ if __name__ == "__main__":
     try:
         for epoch in range(1, epochs):
             with tqdm(total=n_train, desc=f'Epoch {epoch}/{epochs}') as pbar:
-                for frames in train_dataloader:
+                for ref, cur in train_dataloader:
                     # [batch*frame, channel, width, height] -> # [batch, frame-1 , channel, width, height]
-                    flows = spynet.predict_recurrent(frames.to(device))
-                    code = mv_encoder(flows)
-                    output, likelihood = entropy_loss(code.view(-1, *code.shape[2:]))
-                    res = mv_decoder(code)
+                    ref = ref.to(device)
+                    cur = cur.to(device)
+                    flows, _ = spynet(cur, ref)
+                    code, _ = mv_encoder(flows)
+                    output, likelihood = entropy_loss(code)
+                    res, _ = mv_decoder(output)
+                    warped = optical_flow_warping(ref, res)
                     mse = mse_Loss(res, flows)
-                    loss = mse - 0.1 * torch.log(likelihood).mean()
+                    loss = mse - (torch.log(likelihood)/math.log(2)).mean()
                     optimizer_encoder.zero_grad()
                     optimizer_decoder.zero_grad()
                     loss.backward()
                     optimizer_encoder.step()
                     optimizer_decoder.step()
                     pbar.set_postfix(**{'loss (batch)': format(loss.item(), '.5f')})
-                    pbar.update(frames.shape[0])
+                    pbar.update(ref.shape[0])
 
-                    # save1 = cur[0].permute(1, 2, 0).cpu().detach().numpy()
-                    # save2 = pre[0].permute(1, 2, 0).cpu().detach().numpy()
-                    # save3 = ref[0].permute(1, 2, 0).cpu().detach().numpy()
-                    # cv2.imwrite('./outs/res' + str(random.randint(1, 10)) + '.png',
-                    #             np.concatenate((save1, save2, save3), axis=1))
+                    save1 = cur[0].permute(1, 2, 0).cpu().detach().numpy()
+                    save2 = warped[0].permute(1, 2, 0).cpu().detach().numpy()
+                    save3 = ref[0].permute(1, 2, 0).cpu().detach().numpy()
+                    cv2.imwrite('./outs/res' + str(random.randint(1, 10)) + '.png',
+                                np.concatenate((save1, save2, save3), axis=1))
 
         save_checkpoint(mv_encoder, 'motion_encoder_e')
         save_checkpoint(mv_decoder, 'motion_decoder_e')

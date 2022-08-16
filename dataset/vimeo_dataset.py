@@ -52,10 +52,13 @@ class VimeoGroupDataset(data.Dataset):
 
     def __getitem__(self, idx):
         pic_pth = self.pth[idx]
-        for i in range(1, 4):
+        # start = random.randint(0, 4)
+        start = 0
+        end = 4
+        for i in range(start+1, start+end):
             f = cv2.imread(join(pic_pth, 'im'+ str(i) + '.png'))
             f = torch.Tensor(f).permute(2, 0, 1).unsqueeze(0)
-            if i == 1:
+            if i == start+1:
                 frames = torch.Tensor(f)
             else:
                 frames = torch.cat([frames, f], dim=0)
