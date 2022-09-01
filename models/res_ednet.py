@@ -1,4 +1,5 @@
 import torch
+import compressai
 import torch.nn as nn
 from models.gdn import GDN
 from models.convlstm import ConvLSTM, ConvLSTMCell
@@ -13,6 +14,7 @@ class ReanalysisNet(nn.Module):
         self.rnn = ConvLSTM(128, 128, 3, 2, True, True, False)
         self.conv3 = self.conv_gdn(128, 128)
         self.conv4 = nn.Conv2d(128, 128, kernel_size=5, stride=2, padding=2, bias=True)
+        self.entropy_model = compressai.entropy_models.entropy_models.EntropyBottleneck(128).to(device)
 
     def forward(self, input, h_state=None):
         x = self.conv1(input)
@@ -20,6 +22,7 @@ class ReanalysisNet(nn.Module):
         x, h = self.rnn(x, h_state)
         x = self.conv3(x)
         x = self.conv4(x)
+        x, self.likelihood = self.entropy_model(x)
         return x, h
 
     def conv_gdn(self, feat_in, feat_out):

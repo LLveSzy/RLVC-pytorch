@@ -54,11 +54,34 @@ class VimeoGroupDataset(data.Dataset):
         pic_pth = self.pth[idx]
         # start = random.randint(0, 4)
         start = 0
-        end = 4
+        end = 3
         for i in range(start+1, start+end):
             f = cv2.imread(join(pic_pth, 'im'+ str(i) + '.png'))
             f = torch.Tensor(f).permute(2, 0, 1).unsqueeze(0)
             if i == start+1:
+                frames = torch.Tensor(f)
+            else:
+                frames = torch.cat([frames, f], dim=0)
+        return frames
+
+    def __len__(self):
+        return len(self.pth)
+
+
+class UVGDataset(data.Dataset):
+    def __init__(self, root):
+        self.pth = []
+        for rt in sorted(os.listdir(root)):
+            self.pth.append(join(root, rt))
+
+    def __getitem__(self, idx):
+        nums = 2
+        pic_pth = self.pth[idx: idx+nums]
+        # start = random.randint(0, 4)
+        for i in range(nums):
+            f = cv2.imread(pic_pth[i])
+            f = torch.Tensor(f).permute(2, 0, 1).unsqueeze(0)
+            if i == 0:
                 frames = torch.Tensor(f)
             else:
                 frames = torch.cat([frames, f], dim=0)

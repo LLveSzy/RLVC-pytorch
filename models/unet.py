@@ -11,9 +11,9 @@ class DoubleConv(nn.Module):
         super(DoubleConv, self).__init__()
         self.conv = nn.Sequential(
             nn.Conv2d(in_ch, out_ch, 3, padding=1),
-            nn.ReLU(inplace=True),
+            nn.ReLU(),
             nn.Conv2d(out_ch, out_ch, 3, padding=1),
-            nn.ReLU(inplace=True)
+            nn.ReLU()
         )
 
     def forward(self, x):
@@ -75,7 +75,7 @@ class OutConv(nn.Module):
     def __init__(self, in_ch, out_ch):
         super(OutConv, self).__init__()
         self.conv1 = nn.Conv2d(in_ch, in_ch, 3, padding=1)
-        self.relu = nn.ReLU(inplace=True)
+        self.relu = nn.ReLU()
         self.conv2 = nn.Conv2d(in_ch, out_ch, 1)
 
     def forward(self, x):
@@ -86,7 +86,7 @@ class OutConv(nn.Module):
 
 
 class UNet(nn.Module):
-    def __init__(self, in_channels, classes):
+    def __init__(self, in_channels=8, classes=3):
         super(UNet, self).__init__()
         self.n_channels = in_channels
         self.n_classes = classes

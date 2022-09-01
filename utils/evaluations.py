@@ -1,5 +1,5 @@
 import torch
-
+import torch.nn.functional as F
 
 def _fspecial_gauss_1d(size, sigma):
     r"""Create 1-D gauss kernel

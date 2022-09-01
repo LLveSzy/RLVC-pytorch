@@ -22,10 +22,10 @@ if __name__ == "__main__":
     fixed = False
 
     spynet_pretrain = f'./checkpoints/stage4.pth'
-    unet_pretrain = f'./checkpoints/unet_d255.pth'
+    unet_pretrain = f'./checkpoints/unet_light1.pth'
 
     spynet = get_model(SpyNet(), device, spynet_pretrain)
-    unet = get_model(UNet(8, 3), device)
+    unet = get_model(UNet(8, 3), device, unet_pretrain)
 
     optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, unet.parameters()), lr=lr, weight_decay=1e-4)
     # scheduler = torch.optim.lr_scheduler.LinearLR(optimizer, start_factor=0.5, total_iters=4)
